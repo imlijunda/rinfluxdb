@@ -5,6 +5,13 @@
 #'  and escaping special characters are turned off by default to improve
 #'  performance. If you have special characters in your data, set do_escape = TRUE
 #'
+#'  Remarks on NA values. line_protocol() checks for NA values in fields and uses
+#'  regex ",(?:(?!,|=).)*?=NA" to match and remove NA fields. However this comes
+#'  with two caveat: "=NA" inside string field values are replace by random token
+#'  @_=_N_A@ + a random number and later replaced back to =NA. Secondly, as you
+#'  may notice, the mentioned regex can't distinguish field keys with special
+#'  characters such as special\,key\=NA=100 will cause problem.
+#'
 #' @param data a named list-like object
 #' @param measurement name of measurement or column name of measurement in data
 #' @param tag a named list of tag k-v, or column name of tags in data
@@ -24,8 +31,6 @@ line_protocol <- function(data = list(), measurement, tag = NULL, field = NULL,
   #Fallback to list
   class(data) <- NULL
   cols <- names(data)
-
-  chk_NA <- any(sapply(data, anyNA))
 
   m_col <- NULL
   if (any(measurement == cols)) {
@@ -64,38 +69,64 @@ line_protocol <- function(data = list(), measurement, tag = NULL, field = NULL,
       time <- data[[time_col]]
     }
     time_v <- list(sprintf("%0.f", switch(epoch,
-                                            ns = unclass(time) * 1.0e9,
-                                            u  = unclass(time) * 1.0e6,
-                                            ms = unclass(time) * 1.0e3,
-                                            s  = unclass(time) * 1.0,
-                                            m  = unclass(time) / 60.0,
-                                            h  = unclass(time) / 3600.0)))
+                                          ns = unclass(time) * 1.0e9,
+                                          u  = unclass(time) * 1.0e6,
+                                          ms = unclass(time) * 1.0e3,
+                                          s  = unclass(time) * 1.0,
+                                          m  = unclass(time) / 60.0,
+                                          h  = unclass(time) / 3600.0)))
   }
 
   if (is.null(field)) {
     #use all fields left in data
     field_col <- setdiff(cols, c(m_col, tag_col, time_col))
-    field_kv <- convert_kv(data[field_col], do_quote = TRUE, do_escape = do_escape,
-                           force_integer = force_integer)
   } else if (is.null(names(field))) {
     #field is passed as ref to column
     field_col <- field
-    field_kv <- convert_kv(data[field_col], do_quote = TRUE, do_escape = do_escape,
-                           force_integer = force_integer)
   } else {
     #field is passed as named object
-    field_kv <- convert_kv(field, do_quote = TRUE, do_escape = do_escape,
-                           force_integer = force_integer)
+    data <- field
+    field_col <- names(field)
   }
 
-  ans <- do.call(paste0, c(measurement, tag_kv, field_kv, time_v))
+  #check NA in field values
+  chk_NA <- any(sapply(data[field_col], anyNA))
   if (chk_NA) {
-    na_field <- "((?<= )(?:(?!,|=).)*?=NA,)|(,(?:(?!,|=).)*?=NA)"
-    ans <- stringr::str_replace_all(ans, na_field, "")
-  } else {
-    #do not print
-    invisible(ans)
+    #replace "=NA" in string fields with random token
+    token <- sprintf("@_=_N_A@%.10f", runif(n = 1))
+    for (col in field_col) {
+      if (is.character(data[[col]])) {
+        data[[col]] <- stringr::str_replace_all(data[[col]], stringr::fixed("=NA"), token)
+      }
+    }
   }
+
+  field_kv <- convert_kv(data[field_col], do_quote = TRUE, do_escape = do_escape,
+                         force_integer = force_integer)
+
+  if (chk_NA) {
+    na_field <- ",(?:(?!,|=).)*?=NA"
+    #remove heading comma
+    fpart <- stringr::str_sub(
+      #match token, recover "=NA" inside a quoted string
+      stringr::str_replace_all(
+        #match na_field, remove all ",field=NA"
+        stringr::str_replace_all(
+          #add comma to the start of field part, to fix "f1=NA,f2=NA" matching
+          do.call(paste0, c(",", field_kv)),
+          pattern = na_field, replacement = ""
+        ),
+        pattern = stringr::fixed(token), replacement = "=NA"
+      ),
+      start = 2
+    )
+
+    ans <- do.call(paste0, c(measurement, tag_kv, list(fpart), time_v))
+  } else {
+    ans <- do.call(paste0, c(measurement, tag_kv, field_kv, time_v))
+  }
+
+  invisible(ans)
 }
 
 #' Convert a named list to key-value pairs

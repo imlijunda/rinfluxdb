@@ -36,4 +36,11 @@ This function checks whether measurement/tag/field/time are named.
  If not, these arguments are used as references to columns in data. Checking
  and escaping special characters are turned off by default to improve
  performance. If you have special characters in your data, set do_escape = TRUE
+
+ Remarks on NA values. line_protocol() checks for NA values in fields and uses
+ regex ",(?:(?!,|=).)*?=NA" to match and remove NA fields. However this comes
+ with two caveat: "=NA" inside string field values are replace by random token
+ @_=_N_A@ + a random number and later replaced back to =NA. Secondly, as you
+ may notice, the mentioned regex can't distinguish field keys with special
+ characters such as special\,key\=NA=100 will cause problem.
 }
