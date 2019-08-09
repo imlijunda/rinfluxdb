@@ -10,7 +10,7 @@ influxdb_ping(con)
 \item{con}{an InfluxDB connection object}
 }
 \value{
-a character of InfluxDB build and version
+list containing InfluxDB build and version
 }
 \description{
 InfluxDB ping

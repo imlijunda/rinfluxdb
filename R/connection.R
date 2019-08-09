@@ -1,17 +1,17 @@
 #' Create an InfluxDB connection
 #'
-#' @param scheme scheme to use
 #' @param host hostname
 #' @param port port number
 #' @param user username
 #' @param pass password
+#' @param scheme scheme to use
 #' @param path API path
 #'
 #' @return an InfluxDB connection
 #' @export
 #'
-influxdb <- function(scheme = c("http", "https"),
-                     host, port, user = NULL, pass = NULL, path = "/") {
+influxdb <- function(host, port = 8086, user = NULL, pass = NULL,
+                     scheme = c("http", "https"), path = "/") {
 
   scheme <- match.arg(scheme)
 
@@ -37,7 +37,9 @@ influxdb <- function(scheme = c("http", "https"),
 #'
 'print.influxdb' <- function(x, ...) {
 
-  info <- sprintf("%s @ %s://%s:%d%s", influxdb_ping(x), x$scheme, x$host, x$port, x$path)
+  ping <- influxdb_ping(x)
+  info <- sprintf("InfluxDB build %s version %s @ %s://%s:%d%s",
+                  ping$build, ping$version, x$scheme, x$host, x$port, x$path)
   print(info)
 
   invisible(x)
@@ -113,9 +115,7 @@ influxdb_get <- function(con, endpoint, query = NULL, httr_config = list(),
       #default return data
       header_accept
     )
-  }, error = function(e) {
-    e
-  })
+  }, error = base::identity)
 
   r
 }
@@ -145,9 +145,7 @@ influxdb_post <- function(con, endpoint, query = NULL, body = NULL, httr_config 
       #default return data
       header_accept
     )
-  }, error = function(e) {
-    e
-  })
+  }, error = base::identity)
 
   r
 }
@@ -160,7 +158,7 @@ influxdb_chkr <- function(r) {
   }
   if (!r$status_code %in% c(200, 204)) {
     if (grepl("csv", httr::http_type(r), fixed = TRUE)) {
-      err <- influxdb_csv(r)
+      err <- httr::content(r, encoding = "UTF-8", col_types = "")
     } else {
       err <- httr::content(r, encoding = "UTF-8")
     }
@@ -188,7 +186,7 @@ influxdb_csv <- function(r) {
 #'
 #' @param con an InfluxDB connection object
 #'
-#' @return a character of InfluxDB build and version
+#' @return list containing InfluxDB build and version
 #' @export
 #'
 influxdb_ping <- function(con) {
@@ -196,5 +194,8 @@ influxdb_ping <- function(con) {
   r <- influxdb_get(con, "ping")
 
   header <- httr::headers(influxdb_chkr(r))
-  sprintf("InfluxDB build %s version %s", header$`x-influxdb-build`, header$`x-influxdb-version`)
+  list(
+    build = header$`x-influxdb-build`,
+    version = header$`x-influxdb-version`
+  )
 }

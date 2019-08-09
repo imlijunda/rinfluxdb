@@ -4,12 +4,10 @@
 \alias{influxdb}
 \title{Create an InfluxDB connection}
 \usage{
-influxdb(scheme = c("http", "https"), host, port, user = NULL,
-  pass = NULL, path = "/")
+influxdb(host, port = 8086, user = NULL, pass = NULL,
+  scheme = c("http", "https"), path = "/")
 }
 \arguments{
-\item{scheme}{scheme to use}
-
 \item{host}{hostname}
 
 \item{port}{port number}
@@ -17,6 +15,8 @@ influxdb(scheme = c("http", "https"), host, port, user = NULL,
 \item{user}{username}
 
 \item{pass}{password}
+
+\item{scheme}{scheme to use}
 
 \item{path}{API path}
 }
