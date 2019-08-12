@@ -4,8 +4,8 @@ Title: InfluxDB Driver for R
 Version: 0.1.0
 Author: Jun
 Maintainer: Jun <imlijunda@gmail.com>
-Description: Simple InfluxDB driver for R using http API
-Imports: stats, httr, lubridate, stringr
+Description: Simple InfluxDB driver for R using http API.
+Imports: stats, httr, lubridate, stringr, zoo, xts
 Suggest: data.table
 License: MIT + file LICENSE
 Encoding: UTF-8
