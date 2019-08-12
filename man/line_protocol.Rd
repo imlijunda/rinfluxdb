@@ -2,45 +2,63 @@
 % Please edit documentation in R/protocol.R
 \name{line_protocol}
 \alias{line_protocol}
+\alias{line_protocol_gen}
 \title{Convert data to InfluxDB line protocol}
 \usage{
-line_protocol(data = list(), measurement, tag = NULL, field = NULL,
-  time = NULL, do_escape = FALSE, force_integer = FALSE,
-  epoch = c("ns", "u", "ms", "s", "m", "h"))
+line_protocol(data, measurement, tag = NULL, field = NULL,
+  time = NULL, chk_escape = FALSE, chk_na = FALSE, use_int = FALSE,
+  fp_prec = NULL, epoch = c("ns", "u", "ms", "s", "m", "h"))
+
+line_protocol_gen(ref, measurement, tag = NULL, field = NULL,
+  time = NULL, chk_escape = FALSE, chk_na = FALSE, use_int = FALSE,
+  fp_prec = NULL, epoch = c("ns", "u", "ms", "s", "m", "h"))
 }
 \arguments{
-\item{data}{a named list-like object}
+\item{data}{data to convert.}
 
-\item{measurement}{name of measurement or column name of measurement in data}
+\item{measurement}{measurement name, or column name of measurement in ref}
 
-\item{tag}{a named list of tag k-v, or column name of tags in data}
+\item{tag}{column names of tags in ref}
 
-\item{field}{a named list of field k-v, or column name of fields in data}
+\item{field}{column names of fields in ref, if NULL, all columns will be used as fields}
 
-\item{time}{a vector of POSIXct, or column name of time in data}
+\item{time}{column name of time in ref}
 
-\item{do_escape}{whether to check special characters in key/value that needs to escape}
+\item{chk_escape}{whether to check special characters to escape}
 
-\item{force_integer}{whether to use integer data type}
+\item{chk_na}{whether to check NA values}
 
-\item{epoch}{unit of epoch a.k.a precision}
+\item{use_int}{whether to use integer data type}
+
+\item{fp_prec}{precision of floating point data, if NULL, system default is used}
+
+\item{epoch}{unit of epoch}
+
+\item{ref}{a reference data structure}
 }
 \value{
-a vector of characters
+a function that accepts same data structure as ref, or a character vector of line protocol
 }
 \description{
 Convert data to InfluxDB line protocol
 }
 \details{
-This function checks whether measurement/tag/field/time are named.
- If not, these arguments are used as references to columns in data. Checking
- and escaping special characters are turned off by default to improve
- performance. If you have special characters in your data, set do_escape = TRUE
+line_protocol() converts a named data structure to a character vector
+of InfluxDB line protocol. It is a wrapper of line_protocol_gen(), which parses
+reference data and returns a converter function that accepts same data structure.
 
- Remarks on NA values. line_protocol() checks for NA values in fields and uses
- regex ",(?:(?!,|=).)*?=NA" to match and remove NA fields. However this comes
- with two caveat: "=NA" inside string field values are replace by random token
- @_=_N_A@ + a random number and later replaced back to =NA. Secondly, as you
- may notice, the mentioned regex can't distinguish field keys with special
- characters such as special\,key\=NA=100 will cause problem.
+ Remarks on NA values. if chk_na is TURE, line_protocol_gen() checks for NA
+ values in fields ONLY and uses regex ",(?:(?!,|=).)*?=NA" to match/remove NA
+ fields. However this comes with two caveat: "=NA" inside string field values
+ are replace by random token @_=_N_A@ + a random number and later replaced back
+ to =NA, if you have such values and accidentally with same random token,
+ Secondly, as you may notice, the mentioned regex can't distinguish field
+ keys with special characters such as special\,key\=NA=100 will cause problem.
+}
+\examples{
+ref <- iris
+f <- line_protocol_gen(ref, "iris", tag = "Species")
+lp <- f(ref)
+lp2 <- line_protocol(ref, "iris", tag = "Species")
+stopifnot(all(lp == lp2))
 }
