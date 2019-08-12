@@ -36,7 +36,7 @@ influxdb_write.default <- function(data, con, db, precision, rp, consistency,
 #' @rdname influxdb_write
 #' @export
 influxdb_write.character <- function(data, con, db, precision, rp, consistency,
-                                     httr_config = list()) {
+                                     httr_config = list(), ...) {
 
   query <- list(db = db)
   if (!missing(precision)) {

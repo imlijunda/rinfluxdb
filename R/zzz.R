@@ -1,5 +1,16 @@
 #' @import httr
 #' @importFrom lubridate is.Date is.POSIXct
-#' @importFrom data.table fread
 #' @importFrom stringr str_replace_all fixed
-NULL
+#' @importFrom stats runif
+#'
+globals <- new.env()
+globals$dt_avail <- FALSE
+globals$dt_fread <- NULL
+
+.onLoad <- function(libname, pkgname) {
+
+  globals$dt_avail = base::requireNamespace("data.table", quietly = TRUE)
+  if (globals$dt_avail) {
+    globals$dt_fread <- utils::getFromNamespace("fread", "data.table")
+  }
+}

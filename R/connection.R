@@ -174,11 +174,15 @@ influxdb_chkr <- function(r) {
 
 influxdb_csv <- function(r) {
 
-  text <- httr::content(r, as = "text", encoding = "UTF-8")
-  if (text == "") {
-    NULL
+  if (globals$dt_avail) {
+    text <- httr::content(r, as = "text", encoding = "UTF-8")
+    if (text == "") {
+      NULL
+    } else {
+      globals$dt_fread(text = text)
+    }
   } else {
-    data.table::fread(text = text)
+    httr::content(r, encoding = "UTF-8", col_types = "")
   }
 }
 

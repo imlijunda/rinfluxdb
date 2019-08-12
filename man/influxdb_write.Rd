@@ -13,7 +13,7 @@ influxdb_write(data, con, db, precision, rp, consistency,
   httr_config = list(), ...)
 
 \method{influxdb_write}{character}(data, con, db, precision, rp,
-  consistency, httr_config = list())
+  consistency, httr_config = list(), ...)
 }
 \arguments{
 \item{data}{data to write, a vector line protocals or a named list-like object}
