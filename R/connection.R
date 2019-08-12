@@ -80,6 +80,11 @@ influxdb <- function(host, port = 8086, user = NULL, pass = NULL,
   f
 }
 
+#' Get credential from an InfluxDB connection object.
+#'
+#' @param con an InfluxDB connection object
+#'
+#' @return a list of credential
 influxdb_credential <- function(con) {
 
   if (is.null(con$user)) {
@@ -92,6 +97,15 @@ influxdb_credential <- function(con) {
   }
 }
 
+#' GET InfluxDB endpoint
+#'
+#' @param con InfluxDB connection object
+#' @param endpoint  endpoint to POST
+#' @param query query data
+#' @param httr_config curl config passed to httr::POST
+#' @param parser request json/csv
+#'
+#' @return httr response
 influxdb_get <- function(con, endpoint, query = NULL, httr_config = list(),
                          parser = c("json", "csv")) {
 
@@ -120,6 +134,16 @@ influxdb_get <- function(con, endpoint, query = NULL, httr_config = list(),
   r
 }
 
+#' POST to InfluxDB endpoint
+#'
+#' @param con InfluxDB connection object
+#' @param endpoint  endpoint to POST
+#' @param query query data
+#' @param body body data
+#' @param httr_config curl config passed to httr::POST
+#' @param parser request json/csv
+#'
+#' @return httr response
 influxdb_post <- function(con, endpoint, query = NULL, body = NULL, httr_config = list(),
                           parser = c("json", "csv")) {
 
@@ -150,6 +174,11 @@ influxdb_post <- function(con, endpoint, query = NULL, body = NULL, httr_config 
   r
 }
 
+#' Check InfluxDB response. Parse error message and re-throw if any.
+#'
+#' @param r an httr response
+#'
+#' @return r itself
 influxdb_chkr <- function(r) {
 
   if ("error" %in% class(r)) {
@@ -172,6 +201,11 @@ influxdb_chkr <- function(r) {
   r
 }
 
+#' Parse InfluxDB CSV query. Use data.table fread if possible.
+#'
+#' @param r an httr response
+#'
+#' @return data.frame like object
 influxdb_csv <- function(r) {
 
   if (globals$dt_avail) {

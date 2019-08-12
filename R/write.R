@@ -14,7 +14,7 @@
 #'
 influxdb_write <- function(data, con, db, precision, rp, consistency,
                            httr_config = list(), ...) {
-  UseMethod("influxdb_write")
+  UseMethod("influxdb_write", data)
 }
 
 #' @rdname influxdb_write
@@ -57,6 +57,20 @@ influxdb_write.character <- function(data, con, db, precision, rp, consistency,
   NULL
 }
 
+#' Generate an InfluxDB writer function based on reference data structure.
+#'
+#' @param ref reference data
+#' @param con an InfluxDB connection object
+#' @param db database to write to
+#' @param precision InfluxDB time precision, also passed to line_protocol_gen() as epoch
+#' @param rp retention policy
+#' @param consistency consistency
+#' @param httr_config additional httr curl config passed to httr::POST()
+#' @param ... further arguments passed to line_protocol_gen()
+#'
+#' @return a function
+#' @export
+#'
 influxdb_write_gen <- function(ref, con, db, precision, rp, consistency,
                                httr_config = list(), ...) {
 
