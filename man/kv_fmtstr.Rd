@@ -4,13 +4,16 @@
 \alias{kv_fmtstr}
 \title{Generate format string for key=value pair from a reference named list.}
 \usage{
-kv_fmtstr(ref, key, use_int, fp_prec, quote_str, as_str = FALSE,
-  op = "=", sep = ",", tail = " ")
+kv_fmtstr(ref, key, esc, use_int = FALSE, fp_prec = NULL,
+  quote_str = TRUE, as_str = FALSE, op = "=", sep = ",",
+  tail = " ")
 }
 \arguments{
-\item{ref}{a named list}
+\item{ref}{a named list, or a matrix-like object}
 
 \item{key}{key}
+
+\item{esc}{a function to escape special characters in key}
 
 \item{use_int}{whether to use integer data type}
 

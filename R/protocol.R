@@ -45,202 +45,32 @@ line_protocol <- function(data, measurement, tag = NULL, field = NULL, time = NU
 
 #' @rdname line_protocol
 #' @export
-#'
 line_protocol_gen <- function(ref, measurement, tag = NULL, field = NULL, time = NULL,
                               chk_escape = FALSE, chk_na = FALSE, use_int = FALSE, fp_prec = NULL,
                               epoch = c("ns", "u", "ms", "s", "m", "h")) {
 
-  ref <- unclass(ref)
-  if (!length(ref)) {
-    stop("No reference data provided.")
+  UseMethod("line_protocol_gen", ref)
+}
+
+handle_na_str <- function(str, idx, token, tokenised) {
+
+  #look for NA fields
+  na_field <- ",(?:(?!,|=).)*?=NA"
+  #remove =NA
+  str[idx] <- stringr::str_remove_all(str[idx], na_field)
+  if (tokenised) {
+    #put back =NA in string values
+    str[idx] <- stringr::str_replace_all(str[idx], stringr::fixed(token), "=NA")
   }
-
-  key <- names(ref)
-  if (is.null(key)) {
-    stop("Reference data must be named.")
-  }
-
-  if (length(measurement) != 1L) {
-    stop("Length of measurement must be 1.")
-  }
-
-  if (measurement %in% key) {
-    m_ref <- measurement
-    m <- NULL
-  } else {
-    m_ref <- NULL
-    m <- escape_m(measurement)
-  }
-
-  if (is.null(tag)) {
-    m_fmt <- "%s "
-    tag_ref <- NULL
-    tag_key <- NULL
-    tag_fmt <- ""
-  } else {
-    m_fmt <- "%s,"
-    tag_ref <- sort(tag)
-    tag_key <- escape_kv(tag_ref)
-    tag_fmt <- kv_fmtstr(ref = ref, key = tag_ref,
-                         use_int = use_int, fp_prec = fp_prec, quote_str = FALSE, as_str = TRUE)
-  }
-
-  epoch <- match.arg(epoch)
-  epoch <- switch(epoch,
-                  ns = 1.0e9,
-                  u  = 1.0e6,
-                  ms = 1.0e3,
-                  s  = 1.0,
-                  m  = 1.0 / 60,
-                  h  = 1.0 / 3600)
-  if (is.null(time)) {
-    time_ref <- NULL
-    time_fmt <- ""
-    f_tail <- ""
-  } else {
-    time_ref <- time
-    time_fmt <- "%.0f"
-    f_tail <- " "
-  }
-
-  if (is.null(field)) {
-    f_ref <- setdiff(key, c(m_ref, tag_ref, time_ref))
-  } else {
-    f_ref <- field
-  }
-  f_key <- escape_kv(f_ref)
-  f_fmt <- kv_fmtstr(ref = ref, key = f_ref,
-                     use_int = use_int, fp_prec = fp_prec, quote_str = TRUE, tail = f_tail)
-
-  fmt    <- paste0(m_fmt, tag_fmt, f_fmt, time_fmt)
-
-  #update f_fmt in case of chk_na
-  f_fmt <- paste0(",", f_fmt)
-  fmt_na <- paste0(m_fmt, tag_fmt, "%s",  time_fmt)
-
-  if (chk_escape) {
-    esc_m <- escape_m
-    esc_kv <- escape_kv
-  } else {
-    esc_m <- base::identity
-    esc_kv <- base::identity
-  }
-  esc_fv <- escape_fv
-
-  #up to this point, ref is not needed anymore, remove it in case of large ref passed.
-  rm(list = c("ref"))
-
-  f <- function(data) {
-
-    data <- unclass(data)
-
-    spf_args <- list()
-
-    #measurement
-    if (is.null(m_ref)) {
-      spf_args <- append(spf_args, m)
-    } else {
-      tmp <- esc_m(data[[m_ref]])
-      spf_args <- append(spf_args, list(tmp))
-    }
-
-    #tag
-    for (i in seq_along(tag_ref)) {
-      spf_args <- append(spf_args, tag_key[i])
-      tmp <- esc_kv(data[[tag_ref[i]]])
-      spf_args <- append(spf_args, list(tmp))
-    }
-
-    #field
-    for (i in seq_along(f_ref)) {
-      spf_args <- append(spf_args, f_key[i])
-      tmp <- esc_fv(data[[f_ref[i]]])
-      spf_args <- append(spf_args, list(tmp))
-    }
-
-    #time
-    if (!is.null(time_ref)) {
-      tmp <- unclass(data[[time_ref]]) * epoch
-      spf_args <- append(spf_args, list(tmp))
-    }
-
-    do.call(sprintf, args = c(fmt, spf_args))
-  }
-
-  if (chk_na) {
-
-    f_na <- function(data) {
-
-      data <- unclass(data)
-
-      #check for NA values
-      chk <- as.logical(rowSums(sapply(data[f_ref], is.na, USE.NAMES = FALSE)))
-      if (!any(chk)) {
-        #fallback to normal method for performance
-        return(f(data))
-      }
-
-      token <- sprintf("@_=_N_A@%.10f", runif(n = 1))
-      #insert token into string fields
-      f_spf_args <- list()
-      for (i in seq_along(f_ref)) {
-        f_spf_args <- append(f_spf_args, f_key[i])
-        tmp <- esc_fv(data[[f_ref[i]]])
-        if (is.character(tmp)) {
-          tmp[chk] <- stringr::str_replace_all(tmp[chk], stringr::fixed("=NA"), token)
-        }
-        f_spf_args <- append(f_spf_args, list(tmp))
-      }
-      f_spf <- do.call(sprintf, c(f_fmt, f_spf_args))
-      #look for NA fields
-      na_field <- ",(?:(?!,|=).)*?=NA"
-      #remove =NA
-      f_spf[chk] <- stringr::str_remove_all(f_spf[chk], na_field)
-      #put back =NA in string values
-      f_spf[chk] <- stringr::str_replace_all(f_spf[chk], stringr::fixed(token), "=NA")
-      #remove leading comma
-      f_spf <- stringr::str_sub(f_spf, start = 2L)
-
-      #up to this point, the remaining is same as f()
-      spf_args <- list()
-
-      #measurement
-      if (is.null(m_ref)) {
-        spf_args <- append(spf_args, m)
-      } else {
-        tmp <- esc_m(data[[m_ref]])
-        spf_args <- append(spf_args, list(tmp))
-      }
-
-      #tag
-      for (i in seq_along(tag_ref)) {
-        spf_args <- append(spf_args, tag_key[i])
-        tmp <- esc_kv(data[[tag_ref[i]]])
-        spf_args <- append(spf_args, list(tmp))
-      }
-
-      #field
-      spf_args <- append(spf_args, list(f_spf))
-
-      #time
-      if (!is.null(time_ref)) {
-        tmp <- unclass(data[[time_ref]]) * epoch
-        spf_args <- append(spf_args, list(tmp))
-      }
-
-      do.call(sprintf, args = c(fmt_na, spf_args))
-    }
-
-    return(f_na)
-  }
-
-  f
+  #remove leading comma
+  stringr::str_sub(str, start = 2L)
 }
 
 #' Generate format string for key=value pair from a reference named list.
 #'
-#' @param ref a named list
+#' @param ref a named list, or a matrix-like object
 #' @param key key
+#' @param esc a function to escape special characters in key
 #' @param use_int whether to use integer data type
 #' @param fp_prec fp precision
 #' @param quote_str whether to quote string value
@@ -250,7 +80,8 @@ line_protocol_gen <- function(ref, measurement, tag = NULL, field = NULL, time =
 #' @param tail tailing string
 #'
 #' @return a character vector
-kv_fmtstr <- function(ref, key, use_int, fp_prec, quote_str, as_str = FALSE,
+kv_fmtstr <- function(ref, key, esc,
+                      use_int = FALSE, fp_prec = NULL, quote_str = TRUE, as_str = FALSE,
                       op = "=", sep = ",", tail = " ") {
 
   if (is.null(key)) {
@@ -261,7 +92,7 @@ kv_fmtstr <- function(ref, key, use_int, fp_prec, quote_str, as_str = FALSE,
   idx <- seq.int(from = 1L, to = n, by = 3L)
   ans <- vector(mode = "character", length = n)
 
-  ans[idx] <- paste0("%s", op)
+  ans[idx] <- paste0(esc(key), op)
   ans[idx + 2L] <- sep
   ans[n] <- tail
 
@@ -269,18 +100,26 @@ kv_fmtstr <- function(ref, key, use_int, fp_prec, quote_str, as_str = FALSE,
     ans[idx + 1L] <- "%s"
   } else {
     idx <- idx + 1L
-    type <- sapply(ref[key], typeof, USE.NAMES = FALSE)
 
     dbl <- if (is.null(fp_prec)) "%f" else paste0("%.", fp_prec, "f")
     int <- if (use_int) "%di" else "%d"
     chr <- if (quote_str) '"%s"' else "%s"
 
-    for (i in seq_along(key)) {
-      ans[idx[i]] <- switch(type[i],
-                            double = dbl,
-                            integer = int,
-                            character = chr,
-                            "%s")
+    if (is.matrix(ref)) {
+      ans[idx] <- switch(typeof(ref),
+                         double = dbl,
+                         integer = int,
+                         character = chr,
+                         "%s")
+    } else {
+      type <- sapply(ref[key], typeof, USE.NAMES = FALSE)
+      for (i in seq_along(key)) {
+        ans[idx[i]] <- switch(type[i],
+                              double = dbl,
+                              integer = int,
+                              character = chr,
+                              "%s")
+      }
     }
   }
 
@@ -310,6 +149,10 @@ escape_kv <- function(x) {
 }
 
 escape_fv <- function(x) {
+
+  if (is.numeric(x)) {
+    return(x)
+  }
 
   if (lubridate::is.Date(x) || lubridate::is.POSIXct(x)) {
     return(unclass(x))

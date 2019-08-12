@@ -56,3 +56,34 @@ influxdb_write.character <- function(data, con, db, precision, rp, consistency,
 
   NULL
 }
+
+influxdb_write_gen <- function(ref, con, db, precision, rp, consistency,
+                               httr_config = list(), ...) {
+
+  query <- list(db = db)
+
+  if (missing(precision)) {
+    lp_gen <- line_protocol_gen(ref, ...)
+  } else {
+    lp_gen <- line_protocol_gen(ref, epoch = precision, ...)
+    query$precision <- precision
+  }
+  if (!missing(rp)) {
+    query$rp <- rp
+  }
+  if (!missing(consistency)) {
+    query$consistency <- consistency
+  }
+
+  rm(list = c("ref"))
+
+  f <- function(data) {
+    lp <- lp_gen(data)
+    r <- influxdb_post(con = con, endpoint = "write", httr_config = httr_config,
+                       query = query, body = lp, parser = "csv")
+    influxdb_chkr(r)
+    NULL
+  }
+
+  f
+}

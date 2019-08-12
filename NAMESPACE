@@ -3,6 +3,8 @@
 S3method("$",influxdb)
 S3method(influxdb_write,character)
 S3method(influxdb_write,default)
+S3method(line_protocol_gen,default)
+S3method(line_protocol_gen,xts)
 S3method(print,influxdb)
 export(influxdb)
 export(influxdb_ping)
